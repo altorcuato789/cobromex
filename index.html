@@ -13,12 +13,8 @@ body {
     color: white;
 }
 
-/* ANIMACIÓN SUAVE */
-* {
-    transition: all 0.2s ease;
-}
+* { transition: all 0.2s ease; }
 
-/* LOGIN */
 #login {
     height: 100vh;
     display: flex;
@@ -33,7 +29,6 @@ body {
     padding: 30px;
     border-radius: 16px;
     width: 340px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
 }
 
 input {
@@ -42,7 +37,6 @@ input {
     margin: 8px 0;
     border-radius: 10px;
     border: none;
-    outline: none;
     background: #0f172a;
     color: white;
 }
@@ -58,16 +52,9 @@ button {
     font-weight: bold;
 }
 
-button:hover {
-    background: #2563eb;
-    transform: scale(1.02);
-}
+button:hover { transform: scale(1.02); }
 
-/* DASHBOARD */
-#app {
-    display: none;
-    padding: 25px;
-}
+#app { display: none; padding: 25px; }
 
 .header {
     display: flex;
@@ -78,37 +65,27 @@ button:hover {
 
 .grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
 }
 
-/* CARDS */
 .cardBox {
     background: rgba(30,41,59,0.8);
-    backdrop-filter: blur(10px);
-    padding: 18px;
-    border-radius: 16px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    padding: 15px;
+    border-radius: 14px;
 }
 
-.small {
-    font-size: 12px;
-    opacity: 0.7;
-}
-
-/* BOLETOS */
 .ticket {
     background: #111827;
     padding: 15px;
     border-radius: 12px;
     margin-top: 10px;
-    border: 1px solid #1f2937;
 }
 
 .actions button {
     width: auto;
-    margin: 5px 5px 0 0;
-    padding: 8px 10px;
+    margin: 5px;
+    padding: 8px;
     font-size: 12px;
 }
 </style>
@@ -123,36 +100,52 @@ button:hover {
         <input id="user" placeholder="Usuario">
         <input id="pass" type="password" placeholder="Contraseña">
         <button onclick="login()">Entrar</button>
-        <p class="small" id="msg"></p>
+        <p id="msg"></p>
     </div>
 </div>
 
 <!-- APP -->
 <div id="app">
 
-    <div class="header">
-        <h2>📊 Dashboard Ejecutivo</h2>
-        <button onclick="listar()">🔄 Refresh</button>
+<div class="header">
+    <h2>📊 Dashboard Ejecutivo</h2>
+    <button onclick="listar()">🔄 Refresh</button>
+</div>
+
+<!-- STATS -->
+<div class="grid">
+    <div class="cardBox">
+        <h3>💰 Ingresos</h3>
+        <h2 id="ingresos">$0</h2>
     </div>
 
-    <div class="grid">
-
-        <div class="cardBox">
-            <h3>Crear Boleto</h3>
-            <input id="nombre" placeholder="Nombre">
-            <input id="asiento" placeholder="Asiento">
-            <input id="precio" placeholder="Precio">
-            <button onclick="crear()">Crear boleto</button>
-        </div>
-
-        <div class="cardBox">
-            <h3>Resumen</h3>
-            <button onclick="listar()">Ver boletos</button>
-        </div>
-
+    <div class="cardBox">
+        <h3>🎟 Total</h3>
+        <h2 id="total">0</h2>
     </div>
 
-    <div id="lista"></div>
+    <div class="cardBox">
+        <h3>✔ Pagados</h3>
+        <h2 id="pagados">0</h2>
+    </div>
+
+    <div class="cardBox">
+        <h3>⏳ Pendientes</h3>
+        <h2 id="pendientes">0</h2>
+    </div>
+</div>
+
+<div class="grid" style="margin-top:15px;">
+    <div class="cardBox">
+        <h3>Crear Boleto</h3>
+        <input id="nombre" placeholder="Nombre">
+        <input id="asiento" placeholder="Asiento">
+        <input id="precio" placeholder="Precio">
+        <button onclick="crear()">Crear</button>
+    </div>
+</div>
+
+<div id="lista"></div>
 
 </div>
 
@@ -160,85 +153,93 @@ button:hover {
 let token = "";
 
 function login() {
-    fetch("/api/login", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({
-            user: document.getElementById("user").value,
-            password: document.getElementById("pass").value
-        })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.token) {
-            token = data.token;
-            document.getElementById("login").style.display = "none";
-            document.getElementById("app").style.display = "block";
-            listar();
-        } else {
-            document.getElementById("msg").innerText = "Login incorrecto";
-        }
-    });
+fetch("/api/login", {
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+user:document.getElementById("user").value,
+password:document.getElementById("pass").value
+})
+})
+.then(r=>r.json())
+.then(d=>{
+if(d.token){
+token=d.token;
+document.getElementById("login").style.display="none";
+document.getElementById("app").style.display="block";
+listar();
+stats();
+}else{
+document.getElementById("msg").innerText="Error login";
+}
+});
 }
 
-function crear() {
-    fetch("/api/crear", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "token": token
-        },
-        body: JSON.stringify({
-            nombre: document.getElementById("nombre").value,
-            asiento: parseInt(document.getElementById("asiento").value),
-            precio: parseFloat(document.getElementById("precio").value)
-        })
-    }).then(() => listar());
+function stats(){
+fetch("/api/stats",{headers:{"token":token}})
+.then(r=>r.json())
+.then(d=>{
+document.getElementById("ingresos").innerText="$"+d.ingresos;
+document.getElementById("total").innerText=d.total_boletos;
+document.getElementById("pagados").innerText=d.pagados;
+document.getElementById("pendientes").innerText=d.pendientes;
+});
 }
 
-function eliminar(id) {
-    fetch("/api/eliminar/" + id, {
-        method: "DELETE",
-        headers: {"token": token}
-    }).then(() => listar());
+function crear(){
+fetch("/api/crear",{
+method:"POST",
+headers:{
+"Content-Type":"application/json",
+"token":token
+},
+body:JSON.stringify({
+nombre:document.getElementById("nombre").value,
+asiento:parseInt(document.getElementById("asiento").value),
+precio:parseFloat(document.getElementById("precio").value)
+})
+}).then(()=>{listar();stats();});
 }
 
-function pagar(id) {
-    fetch("/api/pagar/" + id, {
-        method: "POST",
-        headers: {"token": token}
-    }).then(() => listar());
+function eliminar(id){
+fetch("/api/eliminar/"+id,{
+method:"DELETE",
+headers:{"token":token}
+}).then(()=>{listar();stats();});
 }
 
-function listar() {
-    fetch("/api/boletos", {
-        headers: {"token": token}
-    })
-    .then(r => r.json())
-    .then(data => {
-        let html = "";
+function pagar(id){
+fetch("/api/pagar/"+id,{
+method:"POST",
+headers:{"token":token}
+}).then(()=>{listar();stats();});
+}
 
-        data.forEach(b => {
-            html += `
-            <div class="ticket">
-                <b>${b.nombre}</b><br>
-                Asiento: ${b.asiento} <br>
-                Precio: $${b.precio} <br>
-                Fecha: ${b.fecha} <br>
-                Estado: ${b.pagado ? "✔ Pagado" : "⏳ Pendiente"} <br>
+function listar(){
+fetch("/api/boletos",{headers:{"token":token}})
+.then(r=>r.json())
+.then(data=>{
+let html="";
+data.forEach(b=>{
+html+=`
+<div class="ticket">
+<b>${b.nombre}</b><br>
+Asiento: ${b.asiento}<br>
+Precio: $${b.precio}<br>
+Fecha: ${b.fecha}<br>
+Estado: ${b.pagado?"✔":"⏳"}<br>
 
-                <div class="actions">
-                    <button onclick="pagar('${b.id}')">Pagar</button>
-                    <button onclick="eliminar('${b.id}')">Eliminar</button>
-                    <a href="/api/qr/${b.id}" target="_blank"><button>QR</button></a>
-                    <a href="/api/pdf/${b.id}" target="_blank"><button>PDF</button></a>
-                </div>
-            </div>
-            `;
-        });
-
-        document.getElementById("lista").innerHTML = html;
-    });
+<div class="actions">
+<button onclick="pagar('${b.id}')">Pagar</button>
+<button onclick="eliminar('${b.id}')">Eliminar</button>
+<a href="/api/qr/${b.id}" target="_blank"><button>QR</button></a>
+<a href="/api/pdf/${b.id}" target="_blank"><button>PDF</button></a>
+</div>
+</div>
+`;
+});
+document.getElementById("lista").innerHTML=html;
+});
 }
 </script>
 

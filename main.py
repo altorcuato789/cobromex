@@ -137,7 +137,7 @@ def eliminar(id: str, token: str = Depends(verify_token)):
     conn.close()
     return {"ok": True}
 
-# ---------------- STATS ----------------
+# ---------------- STATS (DASHBOARD EJECUTIVO) ----------------
 @app.get("/api/stats")
 def stats(token: str = Depends(verify_token)):
     conn = sqlite3.connect("boletos.db")
@@ -155,8 +155,9 @@ def stats(token: str = Depends(verify_token)):
     conn.close()
 
     return {
-        "total": total,
+        "total_boletos": total,
         "pagados": pagados,
+        "pendientes": total - pagados,
         "ingresos": ingresos
     }
 
@@ -184,7 +185,8 @@ def pdf(id: str):
     p.drawString(100, 750, f"Nombre: {b[1]}")
     p.drawString(100, 730, f"Asiento: {b[2]}")
     p.drawString(100, 710, f"Precio: ${b[3]}")
-    p.drawString(100, 690, f"Estado: {'Pagado' if b[5] else 'Pendiente'}")
+    p.drawString(100, 690, f"Fecha: {b[4]}")
+    p.drawString(100, 670, f"Estado: {'Pagado' if b[5] else 'Pendiente'}")
 
     p.save()
     buffer.seek(0)
