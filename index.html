@@ -2,41 +2,50 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>CobroMex Pro</title>
+<title>CobroMex</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 body{
 margin:0;
 font-family:-apple-system,BlinkMacSystemFont,sans-serif;
-background:#0a0f1c;
+background:#0b0f19;
 color:#fff;
 }
 
 .container{
-padding:25px;
-max-width:1100px;
+max-width:1000px;
 margin:auto;
+padding:30px;
 }
 
-.header{
-font-size:22px;
+.title{
+font-size:26px;
 font-weight:600;
 margin-bottom:20px;
 }
 
 .grid{
 display:grid;
-grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-gap:12px;
+grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+gap:15px;
 }
 
 .card{
 background:rgba(255,255,255,0.05);
-padding:15px;
-border-radius:14px;
-backdrop-filter: blur(10px);
 border:1px solid rgba(255,255,255,0.08);
+border-radius:16px;
+padding:16px;
+backdrop-filter: blur(10px);
+}
+
+h2{
+margin:8px 0 0 0;
+font-size:22px;
+}
+
+.section{
+margin-top:25px;
 }
 
 input{
@@ -46,31 +55,39 @@ margin:6px 0;
 border-radius:10px;
 border:none;
 background:#111827;
-color:white;
+color:#fff;
+outline:none;
 }
 
 button{
+width:100%;
 padding:10px;
 border:none;
 border-radius:10px;
 background:#3b82f6;
 color:white;
 cursor:pointer;
-width:100%;
+transition:0.2s;
 }
 
-button:hover{transform:scale(1.02);}
+button:hover{
+transform:scale(1.02);
+}
+
+.list{
+margin-top:20px;
+}
 
 .ticket{
 background:#111827;
+border:1px solid rgba(255,255,255,0.06);
 padding:12px;
-margin-top:10px;
 border-radius:12px;
-border:1px solid rgba(255,255,255,0.05);
+margin-bottom:10px;
 }
 
 .small{
-opacity:0.7;
+opacity:0.6;
 font-size:12px;
 }
 </style>
@@ -80,22 +97,35 @@ font-size:12px;
 
 <div class="container">
 
-<div class="header">🎟 CobroMex Dashboard</div>
+<div class="title">🎟 CobroMex Dashboard</div>
 
+<!-- STATS -->
 <div class="grid">
 
-<div class="card">Ingresos <h2 id="ingresos">$0</h2></div>
-<div class="card">Hoy <h2 id="hoy">$0</h2></div>
-<div class="card">Total <h2 id="total">0</h2></div>
-<div class="card">Pagados <h2 id="pagados">0</h2></div>
-<div class="card">Pendientes <h2 id="pendientes">0</h2></div>
-<div class="card">Promedio <h2 id="promedio">$0</h2></div>
+<div class="card">
+Ingresos
+<h2 id="ingresos">$0</h2>
+</div>
+
+<div class="card">
+Hoy
+<h2 id="hoy">$0</h2>
+</div>
+
+<div class="card">
+Total
+<h2 id="total">0</h2>
+</div>
+
+<div class="card">
+Pagados
+<h2 id="pagados">0</h2>
+</div>
 
 </div>
 
-<br>
-
-<div class="card">
+<!-- FORM -->
+<div class="section card">
 <h3>Crear boleto</h3>
 
 <input id="nombre" placeholder="Nombre">
@@ -105,9 +135,8 @@ font-size:12px;
 <button onclick="crear()">Crear boleto</button>
 </div>
 
-<br>
-
-<div id="lista"></div>
+<!-- LISTA -->
+<div class="list" id="lista"></div>
 
 </div>
 
@@ -124,20 +153,23 @@ body:JSON.stringify({user:"admin",password:"1234"})
 .then(r=>r.json())
 .then(d=>{
 token=d.token;
-loadAll();
+load();
 });
+}
+
+function load(){
+stats();
+listar();
 }
 
 function stats(){
 fetch("/api/stats",{headers:{"token":token}})
 .then(r=>r.json())
 .then(d=>{
-ingresos.innerText="$"+d.ingresos;
-hoy.innerText="$"+d.ingresos_hoy;
-total.innerText=d.total_boletos;
-pagados.innerText=d.pagados;
-pendientes.innerText=d.pendientes;
-promedio.innerText="$"+d.ticket_promedio;
+document.getElementById("ingresos").innerText="$"+d.ingresos;
+document.getElementById("hoy").innerText="$"+d.ingresos_hoy;
+document.getElementById("total").innerText=d.total_boletos;
+document.getElementById("pagados").innerText=d.pagados;
 });
 }
 
@@ -153,16 +185,15 @@ nombre:document.getElementById("nombre").value,
 asiento:parseInt(document.getElementById("asiento").value),
 precio:parseFloat(document.getElementById("precio").value)
 })
-}).then(()=>{
-loadAll();
-});
+}).then(()=>load());
 }
 
 function listar(){
 fetch("/api/boletos",{headers:{"token":token}})
 .then(r=>r.json())
 .then(data=>{
-lista.innerHTML=data.map(b=>`
+document.getElementById("lista").innerHTML=
+data.map(b=>`
 <div class="ticket">
 <b>${b.nombre}</b><br>
 Asiento: ${b.asiento}<br>
@@ -171,11 +202,6 @@ Estado: ${b.pagado ? "✔ Pagado" : "⏳ Pendiente"}
 </div>
 `).join("");
 });
-}
-
-function loadAll(){
-stats();
-listar();
 }
 
 login();
