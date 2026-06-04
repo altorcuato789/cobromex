@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>CobroMex SaaS</title>
+
+<style>
+body{
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+  background: radial-gradient(circle at top,#111827,#0a0a0a);
+  color:#e5e5e5;
+}
+
+/* LOGIN */
+.login{
+  position:fixed;
+  width:100%;
+  height:100%;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  background:rgba(0,0,0,0.85);
+  backdrop-filter: blur(12px);
+}
+
+.login-box{
+  background:#111827;
+  padding:32px;
+  border-radius:16px;
+  width:320px;
+  text-align:center;
+  box-shadow:0 20px 60px rgba(0,0,0,0.6);
+}
+
+input{
+  width:100%;
+  padding:12px;
+  margin-top:10px;
+  background:#1f2937;
+  border:none;
+  color:white;
+  border-radius:10px;
+  outline:none;
+}
+
+input:focus{
+  box-shadow:0 0 0 2px #3b82f6;
+}
+
+button{
+  margin-top:12px;
+  padding:12px;
+  width:100%;
+  background:linear-gradient(135deg,#3b82f6,#2563eb);
+  border:none;
+  color:white;
+  border-radius:10px;
+  cursor:pointer;
+  font-weight:600;
+}
+
+button:disabled{
+  opacity:0.6;
+  cursor:not-allowed;
+}
+
+.app{ display:none; }
+
+/* HEADER */
+.header{
+  padding:20px;
+  font-size:20px;
+  font-weight:600;
+  border-bottom:1px solid #1f2937;
+  background:rgba(17,24,39,0.7);
+  backdrop-filter: blur(10px);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+/* DASHBOARD */
+.dashboard{
+  display:flex;
+  gap:16px;
+  padding:20px;
+}
+
+.card{
+  flex:1;
+  background:#111827;
+  padding:18px;
+  border-radius:14px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.35);
+}
+
+/* CONTENT */
+.container{
+  padding:20px;
+}
+
+/* SEATS */
+.seat{
+  display:inline-flex;
+  justify-content:center;
+  align-items:center;
+  width:38px;
+  height:38px;
+  margin:4px;
+  background:#1f2937;
+  border-radius:10px;
+  font-size:12px;
+}
+
+.taken{
+  background:#ef4444;
+}
+
+/* TICKET */
+.ticket{
+  background:#111827;
+  padding:14px;
+  margin-top:10px;
+  border-radius:12px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+/* TOAST */
+#toast{
+  position:fixed;
+  top:20px;
+  right:20px;
+  z-index:9999;
+}
+
+.toast{
+  background:#111827;
+  padding:12px 16px;
+  margin-bottom:10px;
+  border-radius:10px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.4);
+  animation: slide 0.3s ease;
+}
+
+.toast.success{border-left:4px solid #22c55e;}
+.toast.error{border-left:4px solid #ef4444;}
+.toast.info{border-left:4px solid #3b82f6;}
+
+@keyframes slide{
+  from{transform:translateX(100%);opacity:0;}
+  to{transform:translateX(0);opacity:1;}
+}
+</style>
+</head>
+
+<body>
+
+<div id="toast"></div>
+
+<!-- LOGIN -->
+<div class="login" id="login">
+  <div class="login-box">
+    <h2>CobroMex SaaS</h2>
+    <input id="user" placeholder="Usuario">
+    <input id="pass" type="password" placeholder="Contraseña">
+    <button onclick="login(event)">Entrar</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="app">
+
+<div class="header">
+  <div>CobroMex 💼</div>
+  <button onclick="logout()">Salir</button>
+</div>
+
+<div class="dashboard">
+  <div class="card">Total<br><b id="t">0</b></div>
+  <div class="card">Pagados<br><b id="p">0</b></div>
+  <div class="card">Ingresos<br><b>$<span id="money">0</span></b></div>
+</div>
+
+<div class="container">
+
+<input id="name" placeholder="Nombre">
+<input id="seat" placeholder="Asiento">
+<input id="price" placeholder="Precio">
+
+<button onclick="crear(event)">Crear boleto</button>
+
+<h3>Asientos</h3>
+<div id="bus"></div>
+
+<h3>Boletos</h3>
+<div id="list"></div>
+
+</div>
+</div>
+
+<script>
+
+const API = window.location.origin;
+let TOKEN = localStorage.getItem("token") || "";
+
+/* TOAST */
+function toast(msg,type="info"){
+  let t=document.createElement("div");
+  t.className="toast "+type;
+  t.innerText=msg;
+  document.getElementById("toast").appendChild(t);
+  setTimeout(()=>t.remove(),3000);
+}
+
+/* AUTO LOGIN */
+window.onload = () => {
+  if(TOKEN){
+    document.getElementById("login").style.display="none";
+    document.getElementById("app").style.display="block";
+    cargar();
+    toast("Sesión restaurada","success");
+  }
+};
+
+/* LOGIN */
+async function login(e){
+
+  let btn=e.target;
+  btn.disabled=true;
+  btn.innerText="Entrando...";
+
+  let user=document.getElementById("user").value;
+  let pass=document.getElementById("pass").value;
+
+  let res=await fetch(API+"/api/login",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({user,password:pass})
+  });
+
+  btn.disabled=false;
+  btn.innerText="Entrar";
+
+  if(res.status!=200){
+    toast("Credenciales incorrectas","error");
+    return;
+  }
+
+  let data=await res.json();
+  TOKEN=data.token;
+  localStorage.setItem("token",TOKEN);
+
+  toast("Login exitoso","success");
+
+  document.getElementById("login").style.display="none";
+  document.getElementById("app").style.display="block";
+
+  cargar();
+}
+
+/* AUTH */
+function auth(url,options={}){
+  if(!options.headers) options.headers={};
+  options.headers["token"]=TOKEN;
+  return fetch(url,options);
+}
+
+/* CREAR */
+async function crear(e){
+
+  let btn=e.target;
+  btn.disabled=true;
+  btn.innerText="Creando...";
+
+  let name=document.getElementById("name").value;
+  let seat=Number(document.getElementById("seat").value);
+  let price=Number(document.getElementById("price").value);
+
+  if(!name || !seat || !price){
+    toast("Completa todos los campos","error");
+    btn.disabled=false;
+    btn.innerText="Crear boleto";
+    return;
+  }
+
+  let res=await auth(API+"/api/crear",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({nombre:name,asiento:seat,precio:price})
+  });
+
+  let data=await res.json();
+
+  if(data.error){
+    toast(data.error,"error");
+  }else{
+    toast("Boleto creado","success");
+  }
+
+  btn.disabled=false;
+  btn.innerText="Crear boleto";
+
+  cargar();
+}
+
+/* CARGAR */
+async function cargar(){
+
+  let res=await auth(API+"/api/boletos");
+  let data=await res.json();
+
+  let ocupados=data.map(b=>b.asiento);
+
+  let html="";
+  for(let i=1;i<=20;i++){
+    html+=`<div class="seat ${ocupados.includes(i)?'taken':''}">${i}</div>`;
+  }
+
+  document.getElementById("bus").innerHTML=html;
+
+  document.getElementById("list").innerHTML=data.map(b=>`
+    <div class="ticket">
+      <div>
+        <b>${b.nombre}</b><br>
+        Asiento ${b.asiento} - $${b.precio}
+      </div>
+      <div>
+        <button onclick="pagar('${b.id}')">Pagar</button>
+        <button onclick="eliminar('${b.id}')">Eliminar</button>
+      </div>
+    </div>
+  `).join("");
+
+  let stats=await auth(API+"/api/stats");
+  let s=await stats.json();
+
+  document.getElementById("t").innerText=s.total;
+  document.getElementById("p").innerText=s.pagados;
+  document.getElementById("money").innerText=s.ingresos;
+}
+
+/* PAGAR */
+async function pagar(id){
+  await auth(API+"/api/pagar/"+id,{method:"POST"});
+  toast("Pagado","success");
+  cargar();
+}
+
+/* ELIMINAR */
+async function eliminar(id){
+  await auth(API+"/api/eliminar/"+id,{method:"DELETE"});
+  toast("Eliminado","info");
+  cargar();
+}
+
+/* LOGOUT */
+function logout(){
+  localStorage.removeItem("token");
+  location.reload();
+}
+
+</script>
+
+</body>
+</html>
