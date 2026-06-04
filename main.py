@@ -81,7 +81,7 @@ def login(data: Login):
         return {"token": token}
     raise HTTPException(status_code=401, detail="Credenciales incorrectas")
 
-# ---------------- CREAR BOLETO ----------------
+# ---------------- CREAR ----------------
 @app.post("/api/crear")
 def crear(data: Boleto, token: str = Depends(verify_token)):
     conn = get_conn()
@@ -154,7 +154,7 @@ def eliminar(id: str, token: str = Depends(verify_token)):
 
     return {"ok": True}
 
-# ---------------- STATS ----------------
+# ---------------- STRIPE DASHBOARD STATS ----------------
 @app.get("/api/stats")
 def stats(token: str = Depends(verify_token)):
     conn = get_conn()
@@ -169,13 +169,25 @@ def stats(token: str = Depends(verify_token)):
     c.execute("SELECT SUM(precio) FROM boletos WHERE pagado=1")
     ingresos = c.fetchone()[0] or 0
 
+    # ingresos hoy (PostgreSQL compatible)
+    c.execute("""
+        SELECT COALESCE(SUM(precio),0)
+        FROM boletos
+        WHERE pagado=1 AND DATE(fecha)=CURRENT_DATE
+    """)
+    ingresos_hoy = c.fetchone()[0]
+
+    ticket_promedio = ingresos / pagados if pagados > 0 else 0
+
     conn.close()
 
     return {
         "total_boletos": total,
         "pagados": pagados,
         "pendientes": total - pagados,
-        "ingresos": ingresos
+        "ingresos": ingresos,
+        "ingresos_hoy": ingresos_hoy,
+        "ticket_promedio": round(ticket_promedio, 2)
     }
 
 # ---------------- QR ----------------

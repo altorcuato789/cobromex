@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>CobroMex Pro</title>
+<title>CobroMex Stripe Dashboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
@@ -24,8 +24,8 @@ body {
 }
 
 .card {
-    background: rgba(30,41,59,0.8);
-    backdrop-filter: blur(10px);
+    background: rgba(30,41,59,0.85);
+    backdrop-filter: blur(12px);
     padding: 30px;
     border-radius: 16px;
     width: 340px;
@@ -52,9 +52,14 @@ button {
     font-weight: bold;
 }
 
-button:hover { transform: scale(1.02); }
+button:hover {
+    transform: scale(1.02);
+}
 
-#app { display: none; padding: 25px; }
+#app {
+    display: none;
+    padding: 25px;
+}
 
 .header {
     display: flex;
@@ -73,6 +78,7 @@ button:hover { transform: scale(1.02); }
     background: rgba(30,41,59,0.8);
     padding: 15px;
     border-radius: 14px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
 }
 
 .ticket {
@@ -96,7 +102,7 @@ button:hover { transform: scale(1.02); }
 <!-- LOGIN -->
 <div id="login">
     <div class="card">
-        <h2>🍏 CobroMex Pro</h2>
+        <h2>🍏 CobroMex Stripe</h2>
         <input id="user" placeholder="Usuario">
         <input id="pass" type="password" placeholder="Contraseña">
         <button onclick="login()">Entrar</button>
@@ -108,31 +114,17 @@ button:hover { transform: scale(1.02); }
 <div id="app">
 
 <div class="header">
-    <h2>📊 Dashboard Ejecutivo</h2>
+    <h2>📊 Stripe Dashboard</h2>
     <button onclick="listar()">🔄 Refresh</button>
 </div>
 
-<!-- STATS -->
 <div class="grid">
-    <div class="cardBox">
-        <h3>💰 Ingresos</h3>
-        <h2 id="ingresos">$0</h2>
-    </div>
-
-    <div class="cardBox">
-        <h3>🎟 Total</h3>
-        <h2 id="total">0</h2>
-    </div>
-
-    <div class="cardBox">
-        <h3>✔ Pagados</h3>
-        <h2 id="pagados">0</h2>
-    </div>
-
-    <div class="cardBox">
-        <h3>⏳ Pendientes</h3>
-        <h2 id="pendientes">0</h2>
-    </div>
+    <div class="cardBox"><h3>💰 Ingresos</h3><h2 id="ingresos">$0</h2></div>
+    <div class="cardBox"><h3>📅 Hoy</h3><h2 id="ingresos_hoy">$0</h2></div>
+    <div class="cardBox"><h3>🎟 Total</h3><h2 id="total">0</h2></div>
+    <div class="cardBox"><h3>✔ Pagados</h3><h2 id="pagados">0</h2></div>
+    <div class="cardBox"><h3>⏳ Pendientes</h3><h2 id="pendientes">0</h2></div>
+    <div class="cardBox"><h3>📊 Promedio</h3><h2 id="promedio">$0</h2></div>
 </div>
 
 <div class="grid" style="margin-top:15px;">
@@ -152,8 +144,8 @@ button:hover { transform: scale(1.02); }
 <script>
 let token = "";
 
-function login() {
-fetch("/api/login", {
+function login(){
+fetch("/api/login",{
 method:"POST",
 headers:{"Content-Type":"application/json"},
 body:JSON.stringify({
@@ -180,9 +172,11 @@ fetch("/api/stats",{headers:{"token":token}})
 .then(r=>r.json())
 .then(d=>{
 document.getElementById("ingresos").innerText="$"+d.ingresos;
+document.getElementById("ingresos_hoy").innerText="$"+d.ingresos_hoy;
 document.getElementById("total").innerText=d.total_boletos;
 document.getElementById("pagados").innerText=d.pagados;
 document.getElementById("pendientes").innerText=d.pendientes;
+document.getElementById("promedio").innerText="$"+d.ticket_promedio;
 });
 }
 
@@ -202,17 +196,13 @@ precio:parseFloat(document.getElementById("precio").value)
 }
 
 function eliminar(id){
-fetch("/api/eliminar/"+id,{
-method:"DELETE",
-headers:{"token":token}
-}).then(()=>{listar();stats();});
+fetch("/api/eliminar/"+id,{method:"DELETE",headers:{"token":token}})
+.then(()=>{listar();stats();});
 }
 
 function pagar(id){
-fetch("/api/pagar/"+id,{
-method:"POST",
-headers:{"token":token}
-}).then(()=>{listar();stats();});
+fetch("/api/pagar/"+id,{method:"POST",headers:{"token":token}})
+.then(()=>{listar();stats();});
 }
 
 function listar(){
@@ -227,7 +217,7 @@ html+=`
 Asiento: ${b.asiento}<br>
 Precio: $${b.precio}<br>
 Fecha: ${b.fecha}<br>
-Estado: ${b.pagado?"✔":"⏳"}<br>
+Estado: ${b.pagado?"✔ Pagado":"⏳ Pendiente"}<br>
 
 <div class="actions">
 <button onclick="pagar('${b.id}')">Pagar</button>
