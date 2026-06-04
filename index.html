@@ -2,124 +2,69 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>CobroMex Pro</title>
+<title>CobroMex Startup</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-:root{
-  --bg:#070A12;
-  --panel:rgba(255,255,255,0.06);
-  --border:rgba(255,255,255,0.08);
-  --text:#E5E7EB;
-  --muted:#9CA3AF;
-  --blue:#3B82F6;
-}
-
 body{
 margin:0;
 font-family:-apple-system,BlinkMacSystemFont,sans-serif;
-background:radial-gradient(circle at top, #0B1220, var(--bg));
-color:var(--text);
+background:#070A12;
+color:white;
 }
 
 .container{
 max-width:1100px;
 margin:auto;
-padding:40px 20px;
+padding:35px;
 }
 
 .header{
-display:flex;
-justify-content:space-between;
-align-items:center;
-margin-bottom:30px;
-}
-
-.title{
-font-size:28px;
+font-size:26px;
 font-weight:600;
-letter-spacing:-0.5px;
-}
-
-.subtitle{
-color:var(--muted);
-font-size:13px;
-margin-top:4px;
+margin-bottom:25px;
 }
 
 .grid{
 display:grid;
-grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
-gap:14px;
+grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+gap:12px;
 }
 
 .card{
-background:var(--panel);
-border:1px solid var(--border);
-border-radius:18px;
-padding:18px;
-backdrop-filter: blur(16px);
-box-shadow:0 10px 30px rgba(0,0,0,0.3);
-transition:0.2s;
-}
-
-.card:hover{
-transform:translateY(-2px);
-border-color:rgba(59,130,246,0.3);
-}
-
-.value{
-font-size:22px;
-font-weight:600;
-margin-top:8px;
-}
-
-.section{
-margin-top:30px;
+background:rgba(255,255,255,0.06);
+border:1px solid rgba(255,255,255,0.08);
+padding:15px;
+border-radius:16px;
 }
 
 input{
 width:100%;
-padding:12px;
+padding:10px;
 margin:6px 0;
-border-radius:12px;
-border:1px solid var(--border);
-background:#0B1220;
+border-radius:10px;
+border:none;
+background:#111827;
 color:white;
-outline:none;
-}
-
-input:focus{
-border-color:var(--blue);
-box-shadow:0 0 0 2px rgba(59,130,246,0.2);
 }
 
 button{
 width:100%;
-padding:12px;
+padding:10px;
 border:none;
-border-radius:12px;
-background:linear-gradient(135deg,#3B82F6,#2563EB);
+border-radius:10px;
+background:#3b82f6;
 color:white;
 cursor:pointer;
-font-weight:500;
-transition:0.2s;
-}
-
-button:hover{
-transform:scale(1.02);
-box-shadow:0 10px 25px rgba(59,130,246,0.3);
 }
 
 .ticket{
-background:var(--panel);
-border:1px solid var(--border);
-padding:14px;
-border-radius:14px;
+background:#111827;
+padding:12px;
 margin-top:10px;
+border-radius:12px;
 display:flex;
 justify-content:space-between;
-align-items:center;
 }
 
 .badge{
@@ -128,8 +73,8 @@ border-radius:999px;
 font-size:12px;
 }
 
-.paid{background:rgba(34,197,94,0.15);color:#22C55E;}
-.pending{background:rgba(245,158,11,0.15);color:#F59E0B;}
+.ok{background:#16a34a33;color:#22c55e;}
+.bad{background:#f59e0b33;color:#f59e0b;}
 </style>
 </head>
 
@@ -137,51 +82,27 @@ font-size:12px;
 
 <div class="container">
 
-<div class="header">
-<div>
-<div class="title">CobroMex</div>
-<div class="subtitle">Dashboard ejecutivo tipo Stripe</div>
-</div>
-</div>
+<div class="header">📊 CobroMex Startup Dashboard</div>
 
-<!-- STATS -->
 <div class="grid">
 
-<div class="card">
-Ingresos
-<div class="value" id="ingresos">$0</div>
+<div class="card">Ingresos<h2 id="ingresos">$0</h2></div>
+<div class="card">Total<h2 id="total">0</h2></div>
+<div class="card">Devueltos<h2 id="devueltos">0</h2></div>
+
 </div>
 
-<div class="card">
-Hoy
-<div class="value" id="hoy">$0</div>
-</div>
+<br>
 
 <div class="card">
-Total
-<div class="value" id="total">0</div>
-</div>
-
-<div class="card">
-Pagados
-<div class="value" id="pagados">0</div>
-</div>
-
-</div>
-
-<!-- FORM -->
-<div class="section card">
-<h3 style="margin-top:0;">Crear boleto</h3>
-
-<input id="nombre" placeholder="Nombre del cliente">
-<input id="asiento" placeholder="Número de asiento">
+<h3>Crear boleto</h3>
+<input id="nombre" placeholder="Nombre">
+<input id="asiento" placeholder="Asiento">
 <input id="precio" placeholder="Precio">
-
-<button onclick="crear()">Crear boleto</button>
+<button onclick="crear()">Crear</button>
 </div>
 
-<!-- LIST -->
-<div class="section" id="lista"></div>
+<div id="lista"></div>
 
 </div>
 
@@ -190,11 +111,7 @@ Pagados
 let token="";
 
 function login(){
-fetch("/api/login",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({user:"admin",password:"1234"})
-})
+fetch("/api/login",{method:"POST"})
 .then(r=>r.json())
 .then(d=>{
 token=d.token;
@@ -211,10 +128,9 @@ function stats(){
 fetch("/api/stats",{headers:{"token":token}})
 .then(r=>r.json())
 .then(d=>{
-document.getElementById("ingresos").innerText="$"+d.ingresos;
-document.getElementById("hoy").innerText="$"+d.ingresos_hoy;
-document.getElementById("total").innerText=d.total_boletos;
-document.getElementById("pagados").innerText=d.pagados;
+ingresos.innerText="$"+d.ingresos;
+total.innerText=d.total;
+devueltos.innerText=d.devueltos;
 });
 }
 
@@ -226,9 +142,9 @@ headers:{
 "token":token
 },
 body:JSON.stringify({
-nombre:document.getElementById("nombre").value,
-asiento:parseInt(document.getElementById("asiento").value),
-precio:parseFloat(document.getElementById("precio").value)
+nombre:nombre.value,
+asiento:parseInt(asiento.value),
+precio:parseFloat(precio.value)
 })
 }).then(()=>load());
 }
@@ -236,19 +152,16 @@ precio:parseFloat(document.getElementById("precio").value)
 function listar(){
 fetch("/api/boletos",{headers:{"token":token}})
 .then(r=>r.json())
-.then(data=>{
-document.getElementById("lista").innerHTML=
-data.map(b=>`
+.then(d=>{
+lista.innerHTML=d.map(b=>`
 <div class="ticket">
 <div>
 <b>${b.nombre}</b><br>
-<span style="color:#9CA3AF;font-size:12px;">
-Asiento ${b.asiento} • $${b.precio}
-</span>
+Asiento ${b.asiento} - $${b.precio}
 </div>
 
-<div class="badge ${b.pagado ? "paid":"pending"}">
-${b.pagado ? "Pagado" : "Pendiente"}
+<div class="badge ${b.estado=="devuelto"?"bad":"ok"}">
+${b.estado}
 </div>
 </div>
 `).join("");
