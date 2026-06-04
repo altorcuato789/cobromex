@@ -3,18 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <title>CobroMex</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 body{
 margin:0;
-font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+font-family:Arial;
 background:#0b0f1a;
 color:white;
 }
 
 .container{
-max-width:1000px;
+max-width:800px;
 margin:auto;
 padding:30px;
 }
@@ -22,7 +21,7 @@ padding:30px;
 .card{
 background:#111827;
 padding:15px;
-border-radius:14px;
+border-radius:12px;
 margin-bottom:10px;
 }
 
@@ -30,47 +29,42 @@ input{
 width:100%;
 padding:10px;
 margin:5px 0;
-border-radius:10px;
+border-radius:8px;
 border:none;
 background:#1f2937;
 color:white;
 }
 
 button{
-padding:8px;
+padding:10px;
 border:none;
 border-radius:8px;
+background:#3b82f6;
+color:white;
 cursor:pointer;
-margin:3px;
 }
 
-.primary{background:#3b82f6;color:white;}
-.danger{background:#ef4444;color:white;}
-.gray{background:#374151;color:white;}
-
-.badge{
-padding:3px 8px;
-border-radius:999px;
-font-size:12px;
+.ticket{
+background:#111827;
+padding:10px;
+margin-top:10px;
+border-radius:10px;
 }
-
-.ok{background:#16a34a33;color:#22c55e;}
-.pending{background:#f59e0b33;color:#f59e0b;}
 </style>
+
 </head>
 
 <body>
 
 <div class="container">
 
-<h2>🎟 CobroMex</h2>
+<h2>CobroMex</h2>
 
 <div class="card">
-<h3>Crear boleto</h3>
 <input id="nombre" placeholder="Nombre">
 <input id="asiento" placeholder="Asiento">
 <input id="precio" placeholder="Precio">
-<button class="primary" onclick="crear()">Crear</button>
+<button onclick="crear()">Crear boleto</button>
 </div>
 
 <div id="lista"></div>
@@ -79,24 +73,10 @@ font-size:12px;
 
 <script>
 
-let token="";
-
-function login(){
-fetch("/api/login",{method:"POST"})
-.then(r=>r.json())
-.then(d=>{
-token=d.token;
-listar();
-});
-}
-
 function crear(){
 fetch("/api/crear",{
 method:"POST",
-headers:{
-"Content-Type":"application/json",
-"token":token
-},
+headers:{"Content-Type":"application/json"},
 body:JSON.stringify({
 nombre:nombre.value,
 asiento:parseInt(asiento.value),
@@ -105,44 +85,22 @@ precio:parseFloat(precio.value)
 }).then(()=>listar());
 }
 
-function eliminar(id){
-fetch("/api/eliminar/"+id,{method:"DELETE",headers:{"token":token}})
-.then(()=>listar());
-}
-
-function qr(id){
-window.open("/api/qr/"+id);
-}
-
-function pdf(id){
-window.open("/api/pdf/"+id);
-}
-
-function devolver(id){
-fetch("/api/devolucion/"+id,{method:"POST",headers:{"token":token}})
-.then(()=>listar());
-}
-
 function listar(){
-fetch("/api/boletos",{headers:{"token":token}})
+fetch("/api/boletos")
 .then(r=>r.json())
 .then(data=>{
 lista.innerHTML=data.map(b=>`
-<div class="card">
-<b>${b.nombre}</b> - Asiento ${b.asiento} - $${b.precio}
-<br><br>
-
-<button class="gray" onclick="qr('${b.id}')">QR</button>
-<button class="gray" onclick="pdf('${b.id}')">PDF</button>
-<button class="danger" onclick="eliminar('${b.id}')">Eliminar</button>
-<button class="primary" onclick="devolver('${b.id}')">Devolución</button>
-
+<div class="ticket">
+<b>${b.nombre}</b><br>
+Asiento: ${b.asiento}<br>
+$${b.precio}<br>
+${b.fecha}
 </div>
 `).join("");
 });
 }
 
-login();
+listar();
 
 </script>
 

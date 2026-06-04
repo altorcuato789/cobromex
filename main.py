@@ -1,12 +1,9 @@
-from fastapi import FastAPI, Depends, HTTPException, Header
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
-import os, psycopg2, uuid
+import uuid
 from datetime import datetime
-import io
-import qrcode
-from reportlab.pdfgen import canvas
 
 app = FastAPI()
 
@@ -18,50 +15,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-DATABASE_URL = os.environ.get("DATABASE_URL")
+boletos = []
 
-# ---------------- SAFE DB CONNECTION ----------------
-def db():
-    if not DATABASE_URL:
-        raise Exception("DATABASE_URL no configurada en Render")
-    return psycopg2.connect(DATABASE_URL)
-
-# ---------------- AUTH SIMPLE ----------------
-TOKENS = set()
-
-def verify(token: str = Header(None)):
-    if token not in TOKENS:
-        raise HTTPException(status_code=401, detail="No autorizado")
-
-@app.post("/api/login")
-def login():
-    token = str(uuid.uuid4())
-    TOKENS.add(token)
-    return {"token": token}
-
-# ---------------- INIT SAFE ----------------
-def init():
-    try:
-        c = db()
-        cur = c.cursor()
-        cur.execute("""
-        CREATE TABLE IF NOT EXISTS boletos(
-            id TEXT PRIMARY KEY,
-            nombre TEXT,
-            asiento INT,
-            precio FLOAT,
-            fecha TIMESTAMP,
-            estado TEXT
-        )
-        """)
-        c.commit()
-        c.close()
-    except Exception as e:
-        print("INIT ERROR:", e)
-
-init()
-
-# ---------------- MODEL ----------------
 class B(BaseModel):
     nombre: str
     asiento: int
@@ -71,112 +26,18 @@ class B(BaseModel):
 def home():
     return FileResponse("index.html")
 
-# ---------------- CREATE ----------------
 @app.post("/api/crear")
-def crear(b: B, token: str = Depends(verify)):
-    c = db()
-    cur = c.cursor()
-
-    cur.execute("SELECT id FROM boletos WHERE asiento=%s", (b.asiento,))
-    if cur.fetchone():
-        return {"error": "asiento ocupado"}
-
-    id = str(uuid.uuid4())
-    fecha = datetime.now()
-
-    cur.execute("""
-        INSERT INTO boletos (id, nombre, asiento, precio, fecha, estado)
-        VALUES (%s,%s,%s,%s,%s,'activo')
-    """, (id, b.nombre, b.asiento, b.precio, fecha))
-
-    c.commit()
-    c.close()
-
-    return {"ok": True}
-
-# ---------------- LIST ----------------
-@app.get("/api/boletos")
-def listar(token: str = Depends(verify)):
-    c = db().cursor()
-    c.execute("SELECT * FROM boletos ORDER BY fecha DESC")
-    rows = c.fetchall()
-    c.connection.close()
-
-    return [
-        {
-            "id": r[0],
-            "nombre": r[1],
-            "asiento": r[2],
-            "precio": r[3],
-            "fecha": str(r[4]),
-            "estado": r[5]
-        }
-        for r in rows
-    ]
-
-# ---------------- DELETE ----------------
-@app.delete("/api/eliminar/{id}")
-def eliminar(id: str, token: str = Depends(verify)):
-    c = db()
-    cur = c.cursor()
-    cur.execute("DELETE FROM boletos WHERE id=%s", (id,))
-    c.commit()
-    c.close()
-    return {"ok": True}
-
-# ---------------- DEVOLUCIÓN ----------------
-@app.post("/api/devolucion/{id}")
-def devolucion(id: str, token: str = Depends(verify)):
-    c = db()
-    cur = c.cursor()
-    cur.execute("UPDATE boletos SET estado='devuelto' WHERE id=%s", (id,))
-    c.commit()
-    c.close()
-    return {"ok": True}
-
-# ---------------- STATS ----------------
-@app.get("/api/stats")
-def stats(token: str = Depends(verify)):
-    c = db().cursor()
-
-    c.execute("SELECT COUNT(*), COALESCE(SUM(precio),0) FROM boletos")
-    total, ingresos = c.fetchone()
-
-    c.execute("SELECT COUNT(*) FROM boletos WHERE estado='devuelto'")
-    devueltos = c.fetchone()[0]
-
-    c.connection.close()
-
-    return {
-        "total": total,
-        "ingresos": ingresos,
-        "devueltos": devueltos
+def crear(b: B):
+    boleto = {
+        "id": str(uuid.uuid4()),
+        "nombre": b.nombre,
+        "asiento": b.asiento,
+        "precio": b.precio,
+        "fecha": str(datetime.now())
     }
+    boletos.append(boleto)
+    return {"ok": True}
 
-# ---------------- QR ----------------
-@app.get("/api/qr/{id}")
-def qr(id: str):
-    img = qrcode.make(id)
-    buf = io.BytesIO()
-    img.save(buf)
-    return Response(buf.getvalue(), media_type="image/png")
-
-# ---------------- PDF ----------------
-@app.get("/api/pdf/{id}")
-def pdf(id: str):
-    c = db().cursor()
-    c.execute("SELECT * FROM boletos WHERE id=%s", (id,))
-    b = c.fetchone()
-
-    buf = io.BytesIO()
-    p = canvas.Canvas(buf)
-
-    p.drawString(100, 750, f"{b[1]} - Asiento {b[2]}")
-    p.drawString(100, 730, f"Precio: ${b[3]}")
-    p.drawString(100, 710, f"Fecha: {b[4]}")
-    p.drawString(100, 690, f"Estado: {b[5]}")
-
-    p.save()
-    buf.seek(0)
-
-    return Response(buf.getvalue(), media_type="application/pdf")
+@app.get("/api/boletos")
+def listar():
+    return boletos
