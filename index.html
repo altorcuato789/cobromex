@@ -122,20 +122,56 @@ color:#22c55e;
 
 <script>
 
+let token="";
+
+function login(){
+fetch("/api/login",{method:"POST"})
+.then(r=>r.json())
+.then(d=>{
+token=d.token;
+listar();
+});
+}
+
 function crear(){
 fetch("/api/crear",{
 method:"POST",
-headers:{"Content-Type":"application/json"},
+headers:{
+"Content-Type":"application/json",
+"token":token
+},
 body:JSON.stringify({
-nombre:nombre.value,
-asiento:parseInt(asiento.value),
-precio:parseFloat(precio.value)
+nombre:document.getElementById("nombre").value,
+asiento:parseInt(document.getElementById("asiento").value),
+precio:parseFloat(document.getElementById("precio").value)
 })
 }).then(()=>listar());
 }
 
+function eliminar(id){
+fetch("/api/eliminar/"+id,{
+method:"DELETE",
+headers:{"token":token}
+}).then(()=>listar());
+}
+
+function qr(id){
+window.open("/api/qr/"+id,"_blank");
+}
+
+function pdf(id){
+window.open("/api/pdf/"+id,"_blank");
+}
+
+function devolver(id){
+fetch("/api/devolucion/"+id,{
+method:"POST",
+headers:{"token":token}
+}).then(()=>listar());
+}
+
 function listar(){
-fetch("/api/boletos")
+fetch("/api/boletos",{headers:{"token":token}})
 .then(r=>r.json())
 .then(data=>{
 
@@ -157,9 +193,10 @@ lista.innerHTML=data.map(b=>`
 </div>
 
 <div class="actions">
-<button class="gray">QR</button>
-<button class="gray">PDF</button>
-<button class="danger">Eliminar</button>
+<button class="gray" onclick="qr('${b.id}')">QR</button>
+<button class="gray" onclick="pdf('${b.id}')">PDF</button>
+<button class="danger" onclick="eliminar('${b.id}')">Eliminar</button>
+<button class="primary" onclick="devolver('${b.id}')">Devolución</button>
 </div>
 </div>
 `).join("");
@@ -167,7 +204,7 @@ lista.innerHTML=data.map(b=>`
 });
 }
 
-listar();
+login();
 
 </script>
 
