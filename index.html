@@ -2,53 +2,95 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>CobroMex</title>
+<title>CobroMex Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 body{
 margin:0;
-font-family:Arial;
-background:#0b0f1a;
-color:white;
+font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+background:#070A12;
+color:#fff;
 }
 
 .container{
-max-width:800px;
+max-width:1100px;
 margin:auto;
-padding:30px;
+padding:35px;
+}
+
+.header{
+font-size:28px;
+font-weight:600;
+margin-bottom:20px;
+}
+
+.grid{
+display:grid;
+grid-template-columns:repeat(3,1fr);
+gap:15px;
+margin-bottom:20px;
 }
 
 .card{
-background:#111827;
+background:rgba(255,255,255,0.06);
+border:1px solid rgba(255,255,255,0.08);
 padding:15px;
-border-radius:12px;
-margin-bottom:10px;
+border-radius:16px;
+backdrop-filter: blur(10px);
 }
 
 input{
 width:100%;
 padding:10px;
 margin:5px 0;
-border-radius:8px;
+border-radius:10px;
 border:none;
-background:#1f2937;
+background:#111827;
 color:white;
 }
 
 button{
-padding:10px;
+padding:8px 12px;
 border:none;
-border-radius:8px;
-background:#3b82f6;
-color:white;
+border-radius:10px;
 cursor:pointer;
+margin:4px;
+font-weight:500;
 }
 
+.primary{background:#3b82f6;color:white;}
+.danger{background:#ef4444;color:white;}
+.gray{background:#374151;color:white;}
+
 .ticket{
-background:#111827;
-padding:10px;
+background:rgba(255,255,255,0.04);
+border:1px solid rgba(255,255,255,0.08);
+padding:15px;
+border-radius:14px;
 margin-top:10px;
-border-radius:10px;
+display:flex;
+justify-content:space-between;
+align-items:center;
+}
+
+.small{
+font-size:12px;
+opacity:0.7;
+}
+
+.actions{
+display:flex;
+gap:5px;
+flex-wrap:wrap;
+}
+
+.badge{
+padding:4px 10px;
+border-radius:999px;
+font-size:12px;
+background:#16a34a22;
+color:#22c55e;
 }
 </style>
 
@@ -58,13 +100,20 @@ border-radius:10px;
 
 <div class="container">
 
-<h2>CobroMex</h2>
+<div class="header">📊 CobroMex Dashboard</div>
+
+<div class="grid">
+<div class="card">Total boletos <h2 id="total">0</h2></div>
+<div class="card">Ingresos <h2 id="ingresos">$0</h2></div>
+<div class="card">Última venta <h2 id="ultima">—</h2></div>
+</div>
 
 <div class="card">
+<h3>Crear boleto</h3>
 <input id="nombre" placeholder="Nombre">
 <input id="asiento" placeholder="Asiento">
 <input id="precio" placeholder="Precio">
-<button onclick="crear()">Crear boleto</button>
+<button class="primary" onclick="crear()">Crear boleto</button>
 </div>
 
 <div id="lista"></div>
@@ -89,14 +138,32 @@ function listar(){
 fetch("/api/boletos")
 .then(r=>r.json())
 .then(data=>{
+
+document.getElementById("total").innerText=data.length;
+
+let ingresos=data.reduce((a,b)=>a+b.precio,0);
+document.getElementById("ingresos").innerText="$"+ingresos;
+
+if(data.length>0){
+document.getElementById("ultima").innerText=data[data.length-1].fecha;
+}
+
 lista.innerHTML=data.map(b=>`
 <div class="ticket">
+<div>
 <b>${b.nombre}</b><br>
-Asiento: ${b.asiento}<br>
-$${b.precio}<br>
-${b.fecha}
+<span class="small">Asiento ${b.asiento}</span><br>
+<span class="small">${b.fecha}</span>
+</div>
+
+<div class="actions">
+<button class="gray">QR</button>
+<button class="gray">PDF</button>
+<button class="danger">Eliminar</button>
+</div>
 </div>
 `).join("");
+
 });
 }
 
