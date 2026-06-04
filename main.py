@@ -25,6 +25,8 @@ app.add_middleware(
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 def get_conn():
+    if not DATABASE_URL:
+        raise Exception("DATABASE_URL no configurada en Render")
     return psycopg2.connect(DATABASE_URL)
 
 # ---------------- AUTH SIMPLE ----------------
@@ -36,24 +38,28 @@ def verify_token(token: str = Header(None)):
     if token not in TOKENS:
         raise HTTPException(status_code=401, detail="No autorizado")
 
-# ---------------- INIT DB ----------------
+# ---------------- INIT DB (SAFE) ----------------
 def init_db():
-    conn = get_conn()
-    c = conn.cursor()
+    try:
+        conn = get_conn()
+        c = conn.cursor()
 
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS boletos (
-            id TEXT PRIMARY KEY,
-            nombre TEXT,
-            asiento INT,
-            precio FLOAT,
-            fecha TEXT,
-            pagado INT DEFAULT 0
-        )
-    """)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS boletos (
+                id TEXT PRIMARY KEY,
+                nombre TEXT,
+                asiento INT,
+                precio FLOAT,
+                fecha TEXT,
+                pagado INT DEFAULT 0
+            )
+        """)
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+        conn.close()
+
+    except Exception as e:
+        print("DB init pendiente:", e)
 
 init_db()
 
@@ -154,7 +160,7 @@ def eliminar(id: str, token: str = Depends(verify_token)):
 
     return {"ok": True}
 
-# ---------------- STRIPE DASHBOARD STATS ----------------
+# ---------------- STRIPE STATS ----------------
 @app.get("/api/stats")
 def stats(token: str = Depends(verify_token)):
     conn = get_conn()
@@ -166,10 +172,9 @@ def stats(token: str = Depends(verify_token)):
     c.execute("SELECT COUNT(*) FROM boletos WHERE pagado=1")
     pagados = c.fetchone()[0]
 
-    c.execute("SELECT SUM(precio) FROM boletos WHERE pagado=1")
-    ingresos = c.fetchone()[0] or 0
+    c.execute("SELECT COALESCE(SUM(precio),0) FROM boletos WHERE pagado=1")
+    ingresos = c.fetchone()[0]
 
-    # ingresos hoy (PostgreSQL compatible)
     c.execute("""
         SELECT COALESCE(SUM(precio),0)
         FROM boletos
