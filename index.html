@@ -2,85 +2,130 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>CobroMex Stripe Pro</title>
+<title>CobroMex Pro</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 body{
 margin:0;
-font-family:-apple-system, BlinkMacSystemFont, sans-serif;
-background:#0b1220;
-color:white;
+font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+background:#0a0f1c;
+color:#fff;
 }
 
-.cardBox{
-background:#111827;
-padding:15px;
-border-radius:12px;
-margin:10px;
+.container{
+padding:25px;
+max-width:1100px;
+margin:auto;
+}
+
+.header{
+font-size:22px;
+font-weight:600;
+margin-bottom:20px;
 }
 
 .grid{
 display:grid;
-grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
-gap:10px;
+grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+gap:12px;
+}
+
+.card{
+background:rgba(255,255,255,0.05);
+padding:15px;
+border-radius:14px;
+backdrop-filter: blur(10px);
+border:1px solid rgba(255,255,255,0.08);
+}
+
+input{
+width:100%;
+padding:10px;
+margin:6px 0;
+border-radius:10px;
+border:none;
+background:#111827;
+color:white;
 }
 
 button{
-background:#3b82f6;
+padding:10px;
 border:none;
-padding:8px;
+border-radius:10px;
+background:#3b82f6;
 color:white;
-border-radius:8px;
 cursor:pointer;
+width:100%;
 }
 
+button:hover{transform:scale(1.02);}
+
 .ticket{
-background:#1f2937;
-padding:10px;
-margin:10px;
-border-radius:10px;
+background:#111827;
+padding:12px;
+margin-top:10px;
+border-radius:12px;
+border:1px solid rgba(255,255,255,0.05);
+}
+
+.small{
+opacity:0.7;
+font-size:12px;
 }
 </style>
 </head>
 
 <body>
 
-<div id="app" style="padding:20px;">
+<div class="container">
 
-<h2>📊 Stripe Dashboard Pro</h2>
+<div class="header">🎟 CobroMex Dashboard</div>
 
 <div class="grid">
-<div class="cardBox">Ingresos: <h2 id="ingresos">$0</h2></div>
-<div class="cardBox">Hoy: <h2 id="ingresos_hoy">$0</h2></div>
-<div class="cardBox">Total: <h2 id="total">0</h2></div>
-<div class="cardBox">Pagados: <h2 id="pagados">0</h2></div>
-<div class="cardBox">Pendientes: <h2 id="pendientes">0</h2></div>
-<div class="cardBox">Promedio: <h2 id="promedio">$0</h2></div>
+
+<div class="card">Ingresos <h2 id="ingresos">$0</h2></div>
+<div class="card">Hoy <h2 id="hoy">$0</h2></div>
+<div class="card">Total <h2 id="total">0</h2></div>
+<div class="card">Pagados <h2 id="pagados">0</h2></div>
+<div class="card">Pendientes <h2 id="pendientes">0</h2></div>
+<div class="card">Promedio <h2 id="promedio">$0</h2></div>
+
 </div>
 
-<canvas id="chart"></canvas>
+<br>
 
+<div class="card">
 <h3>Crear boleto</h3>
+
 <input id="nombre" placeholder="Nombre">
 <input id="asiento" placeholder="Asiento">
 <input id="precio" placeholder="Precio">
-<button onclick="crear()">Crear</button>
+
+<button onclick="crear()">Crear boleto</button>
+</div>
+
+<br>
 
 <div id="lista"></div>
 
 </div>
 
 <script>
+
 let token="";
-let chart;
 
 function login(){
-fetch("/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user:"admin",password:"1234"})})
+fetch("/api/login",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({user:"admin",password:"1234"})
+})
 .then(r=>r.json())
-.then(d=>{token=d.token;listar();stats();grafica();});
+.then(d=>{
+token=d.token;
+loadAll();
+});
 }
 
 function stats(){
@@ -88,7 +133,7 @@ fetch("/api/stats",{headers:{"token":token}})
 .then(r=>r.json())
 .then(d=>{
 ingresos.innerText="$"+d.ingresos;
-ingresos_hoy.innerText="$"+d.ingresos_hoy;
+hoy.innerText="$"+d.ingresos_hoy;
 total.innerText=d.total_boletos;
 pagados.innerText=d.pagados;
 pendientes.innerText=d.pendientes;
@@ -96,43 +141,45 @@ promedio.innerText="$"+d.ticket_promedio;
 });
 }
 
-function grafica(){
-fetch("/api/grafica",{headers:{"token":token}})
-.then(r=>r.json())
-.then(d=>{
-if(chart)chart.destroy();
-
-chart=new Chart(document.getElementById("chart"),{
-type:"line",
-data:{
-labels:d.labels,
-datasets:[{
-data:d.data,
-borderColor:"#3b82f6"
-}]
-}
-});
-});
-}
-
 function crear(){
-fetch("/api/crear",{method:"POST",headers:{"Content-Type":"application/json","token":token},
-body:JSON.stringify({nombre,asiento:parseInt(asiento.value),precio:parseFloat(precio.value)})})
-.then(()=>{stats();listar();grafica();});
+fetch("/api/crear",{
+method:"POST",
+headers:{
+"Content-Type":"application/json",
+"token":token
+},
+body:JSON.stringify({
+nombre:document.getElementById("nombre").value,
+asiento:parseInt(document.getElementById("asiento").value),
+precio:parseFloat(document.getElementById("precio").value)
+})
+}).then(()=>{
+loadAll();
+});
 }
 
 function listar(){
 fetch("/api/boletos",{headers:{"token":token}})
 .then(r=>r.json())
-.then(d=>{
-lista.innerHTML=d.map(b=>`
+.then(data=>{
+lista.innerHTML=data.map(b=>`
 <div class="ticket">
-${b.nombre} - $${b.precio}
-</div>`).join("");
+<b>${b.nombre}</b><br>
+Asiento: ${b.asiento}<br>
+Precio: $${b.precio}<br>
+Estado: ${b.pagado ? "✔ Pagado" : "⏳ Pendiente"}
+</div>
+`).join("");
 });
 }
 
+function loadAll(){
+stats();
+listar();
+}
+
 login();
+
 </script>
 
 </body>
