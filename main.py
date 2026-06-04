@@ -2,7 +2,8 @@ from fastapi import FastAPI, Depends, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
-import sqlite3
+import os
+import psycopg2
 import uuid
 from datetime import datetime
 import io
@@ -20,7 +21,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ---------------- AUTH ----------------
+# ---------------- DATABASE ----------------
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+def get_conn():
+    return psycopg2.connect(DATABASE_URL)
+
+# ---------------- AUTH SIMPLE ----------------
 ADMIN_USER = "admin"
 ADMIN_PASS = "1234"
 TOKENS = set()
@@ -29,20 +36,22 @@ def verify_token(token: str = Header(None)):
     if token not in TOKENS:
         raise HTTPException(status_code=401, detail="No autorizado")
 
-# ---------------- DB ----------------
+# ---------------- INIT DB ----------------
 def init_db():
-    conn = sqlite3.connect("boletos.db")
+    conn = get_conn()
     c = conn.cursor()
+
     c.execute("""
         CREATE TABLE IF NOT EXISTS boletos (
-            id TEXT,
+            id TEXT PRIMARY KEY,
             nombre TEXT,
-            asiento INTEGER,
-            precio REAL,
+            asiento INT,
+            precio FLOAT,
             fecha TEXT,
-            pagado INTEGER DEFAULT 0
+            pagado INT DEFAULT 0
         )
     """)
+
     conn.commit()
     conn.close()
 
@@ -72,13 +81,13 @@ def login(data: Login):
         return {"token": token}
     raise HTTPException(status_code=401, detail="Credenciales incorrectas")
 
-# ---------------- CREAR ----------------
+# ---------------- CREAR BOLETO ----------------
 @app.post("/api/crear")
 def crear(data: Boleto, token: str = Depends(verify_token)):
-    conn = sqlite3.connect("boletos.db")
+    conn = get_conn()
     c = conn.cursor()
 
-    c.execute("SELECT id FROM boletos WHERE asiento=?", (data.asiento,))
+    c.execute("SELECT id FROM boletos WHERE asiento=%s", (data.asiento,))
     if c.fetchone():
         conn.close()
         return {"error": "Asiento ocupado"}
@@ -88,7 +97,7 @@ def crear(data: Boleto, token: str = Depends(verify_token)):
 
     c.execute("""
         INSERT INTO boletos (id, nombre, asiento, precio, fecha, pagado)
-        VALUES (?, ?, ?, ?, ?, 0)
+        VALUES (%s, %s, %s, %s, %s, 0)
     """, (boleto_id, data.nombre, data.asiento, data.precio, fecha))
 
     conn.commit()
@@ -99,10 +108,12 @@ def crear(data: Boleto, token: str = Depends(verify_token)):
 # ---------------- LISTAR ----------------
 @app.get("/api/boletos")
 def listar(token: str = Depends(verify_token)):
-    conn = sqlite3.connect("boletos.db")
+    conn = get_conn()
     c = conn.cursor()
+
     c.execute("SELECT * FROM boletos")
     rows = c.fetchall()
+
     conn.close()
 
     return [
@@ -120,27 +131,33 @@ def listar(token: str = Depends(verify_token)):
 # ---------------- PAGAR ----------------
 @app.post("/api/pagar/{id}")
 def pagar(id: str, token: str = Depends(verify_token)):
-    conn = sqlite3.connect("boletos.db")
+    conn = get_conn()
     c = conn.cursor()
-    c.execute("UPDATE boletos SET pagado=1 WHERE id=?", (id,))
+
+    c.execute("UPDATE boletos SET pagado=1 WHERE id=%s", (id,))
+
     conn.commit()
     conn.close()
+
     return {"ok": True}
 
 # ---------------- ELIMINAR ----------------
 @app.delete("/api/eliminar/{id}")
 def eliminar(id: str, token: str = Depends(verify_token)):
-    conn = sqlite3.connect("boletos.db")
+    conn = get_conn()
     c = conn.cursor()
-    c.execute("DELETE FROM boletos WHERE id=?", (id,))
+
+    c.execute("DELETE FROM boletos WHERE id=%s", (id,))
+
     conn.commit()
     conn.close()
+
     return {"ok": True}
 
-# ---------------- STATS (DASHBOARD EJECUTIVO) ----------------
+# ---------------- STATS ----------------
 @app.get("/api/stats")
 def stats(token: str = Depends(verify_token)):
-    conn = sqlite3.connect("boletos.db")
+    conn = get_conn()
     c = conn.cursor()
 
     c.execute("SELECT COUNT(*) FROM boletos")
@@ -173,10 +190,12 @@ def qr(id: str):
 # ---------------- PDF ----------------
 @app.get("/api/pdf/{id}")
 def pdf(id: str):
-    conn = sqlite3.connect("boletos.db")
+    conn = get_conn()
     c = conn.cursor()
-    c.execute("SELECT * FROM boletos WHERE id=?", (id,))
+
+    c.execute("SELECT * FROM boletos WHERE id=%s", (id,))
     b = c.fetchone()
+
     conn.close()
 
     buffer = io.BytesIO()
