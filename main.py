@@ -20,11 +20,13 @@ app.add_middleware(
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
+# ---------------- SAFE DB CONNECTION ----------------
 def db():
     if not DATABASE_URL:
-        raise Exception("DATABASE_URL no configurada")
+        raise Exception("DATABASE_URL no configurada en Render")
     return psycopg2.connect(DATABASE_URL)
 
+# ---------------- AUTH SIMPLE ----------------
 TOKENS = set()
 
 def verify(token: str = Header(None)):
@@ -37,25 +39,29 @@ def login():
     TOKENS.add(token)
     return {"token": token}
 
-# ---------------- DB INIT ----------------
+# ---------------- INIT SAFE ----------------
 def init():
-    c = db()
-    cur = c.cursor()
-    cur.execute("""
-    CREATE TABLE IF NOT EXISTS boletos(
-        id TEXT PRIMARY KEY,
-        nombre TEXT,
-        asiento INT,
-        precio FLOAT,
-        fecha TIMESTAMP,
-        estado TEXT
-    )
-    """)
-    c.commit()
-    c.close()
+    try:
+        c = db()
+        cur = c.cursor()
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS boletos(
+            id TEXT PRIMARY KEY,
+            nombre TEXT,
+            asiento INT,
+            precio FLOAT,
+            fecha TIMESTAMP,
+            estado TEXT
+        )
+        """)
+        c.commit()
+        c.close()
+    except Exception as e:
+        print("INIT ERROR:", e)
 
 init()
 
+# ---------------- MODEL ----------------
 class B(BaseModel):
     nombre: str
     asiento: int
@@ -65,34 +71,30 @@ class B(BaseModel):
 def home():
     return FileResponse("index.html")
 
-# ---------------- CREAR ----------------
+# ---------------- CREATE ----------------
 @app.post("/api/crear")
 def crear(b: B, token: str = Depends(verify)):
-    try:
-        c = db()
-        cur = c.cursor()
+    c = db()
+    cur = c.cursor()
 
-        cur.execute("SELECT id FROM boletos WHERE asiento=%s", (b.asiento,))
-        if cur.fetchone():
-            return {"error": "asiento ocupado"}
+    cur.execute("SELECT id FROM boletos WHERE asiento=%s", (b.asiento,))
+    if cur.fetchone():
+        return {"error": "asiento ocupado"}
 
-        id = str(uuid.uuid4())
-        fecha = datetime.now()
+    id = str(uuid.uuid4())
+    fecha = datetime.now()
 
-        cur.execute("""
-            INSERT INTO boletos (id, nombre, asiento, precio, fecha, estado)
-            VALUES (%s,%s,%s,%s,%s,'activo')
-        """, (id, b.nombre, b.asiento, b.precio, fecha))
+    cur.execute("""
+        INSERT INTO boletos (id, nombre, asiento, precio, fecha, estado)
+        VALUES (%s,%s,%s,%s,%s,'activo')
+    """, (id, b.nombre, b.asiento, b.precio, fecha))
 
-        c.commit()
-        c.close()
+    c.commit()
+    c.close()
 
-        return {"ok": True}
+    return {"ok": True}
 
-    except Exception as e:
-        return {"error": str(e)}
-
-# ---------------- LISTAR ----------------
+# ---------------- LIST ----------------
 @app.get("/api/boletos")
 def listar(token: str = Depends(verify)):
     c = db().cursor()
@@ -112,7 +114,7 @@ def listar(token: str = Depends(verify)):
         for r in rows
     ]
 
-# ---------------- ELIMINAR ----------------
+# ---------------- DELETE ----------------
 @app.delete("/api/eliminar/{id}")
 def eliminar(id: str, token: str = Depends(verify)):
     c = db()
