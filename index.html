@@ -2,235 +2,137 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>CobroMex Stripe Dashboard</title>
+<title>CobroMex Stripe Pro</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
-body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial;
-    background: #0b1220;
-    color: white;
+body{
+margin:0;
+font-family:-apple-system, BlinkMacSystemFont, sans-serif;
+background:#0b1220;
+color:white;
 }
 
-* { transition: all 0.2s ease; }
-
-#login {
-    height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background: radial-gradient(circle at top, #1e293b, #0b1220);
+.cardBox{
+background:#111827;
+padding:15px;
+border-radius:12px;
+margin:10px;
 }
 
-.card {
-    background: rgba(30,41,59,0.85);
-    backdrop-filter: blur(12px);
-    padding: 30px;
-    border-radius: 16px;
-    width: 340px;
+.grid{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+gap:10px;
 }
 
-input {
-    width: 100%;
-    padding: 12px;
-    margin: 8px 0;
-    border-radius: 10px;
-    border: none;
-    background: #0f172a;
-    color: white;
+button{
+background:#3b82f6;
+border:none;
+padding:8px;
+color:white;
+border-radius:8px;
+cursor:pointer;
 }
 
-button {
-    width: 100%;
-    padding: 12px;
-    border-radius: 10px;
-    border: none;
-    cursor: pointer;
-    background: #3b82f6;
-    color: white;
-    font-weight: bold;
-}
-
-button:hover {
-    transform: scale(1.02);
-}
-
-#app {
-    display: none;
-    padding: 25px;
-}
-
-.header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-}
-
-.grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
-}
-
-.cardBox {
-    background: rgba(30,41,59,0.8);
-    padding: 15px;
-    border-radius: 14px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-}
-
-.ticket {
-    background: #111827;
-    padding: 15px;
-    border-radius: 12px;
-    margin-top: 10px;
-}
-
-.actions button {
-    width: auto;
-    margin: 5px;
-    padding: 8px;
-    font-size: 12px;
+.ticket{
+background:#1f2937;
+padding:10px;
+margin:10px;
+border-radius:10px;
 }
 </style>
 </head>
 
 <body>
 
-<!-- LOGIN -->
-<div id="login">
-    <div class="card">
-        <h2>🍏 CobroMex Stripe</h2>
-        <input id="user" placeholder="Usuario">
-        <input id="pass" type="password" placeholder="Contraseña">
-        <button onclick="login()">Entrar</button>
-        <p id="msg"></p>
-    </div>
-</div>
+<div id="app" style="padding:20px;">
 
-<!-- APP -->
-<div id="app">
-
-<div class="header">
-    <h2>📊 Stripe Dashboard</h2>
-    <button onclick="listar()">🔄 Refresh</button>
-</div>
+<h2>📊 Stripe Dashboard Pro</h2>
 
 <div class="grid">
-    <div class="cardBox"><h3>💰 Ingresos</h3><h2 id="ingresos">$0</h2></div>
-    <div class="cardBox"><h3>📅 Hoy</h3><h2 id="ingresos_hoy">$0</h2></div>
-    <div class="cardBox"><h3>🎟 Total</h3><h2 id="total">0</h2></div>
-    <div class="cardBox"><h3>✔ Pagados</h3><h2 id="pagados">0</h2></div>
-    <div class="cardBox"><h3>⏳ Pendientes</h3><h2 id="pendientes">0</h2></div>
-    <div class="cardBox"><h3>📊 Promedio</h3><h2 id="promedio">$0</h2></div>
+<div class="cardBox">Ingresos: <h2 id="ingresos">$0</h2></div>
+<div class="cardBox">Hoy: <h2 id="ingresos_hoy">$0</h2></div>
+<div class="cardBox">Total: <h2 id="total">0</h2></div>
+<div class="cardBox">Pagados: <h2 id="pagados">0</h2></div>
+<div class="cardBox">Pendientes: <h2 id="pendientes">0</h2></div>
+<div class="cardBox">Promedio: <h2 id="promedio">$0</h2></div>
 </div>
 
-<div class="grid" style="margin-top:15px;">
-    <div class="cardBox">
-        <h3>Crear Boleto</h3>
-        <input id="nombre" placeholder="Nombre">
-        <input id="asiento" placeholder="Asiento">
-        <input id="precio" placeholder="Precio">
-        <button onclick="crear()">Crear</button>
-    </div>
-</div>
+<canvas id="chart"></canvas>
+
+<h3>Crear boleto</h3>
+<input id="nombre" placeholder="Nombre">
+<input id="asiento" placeholder="Asiento">
+<input id="precio" placeholder="Precio">
+<button onclick="crear()">Crear</button>
 
 <div id="lista"></div>
 
 </div>
 
 <script>
-let token = "";
+let token="";
+let chart;
 
 function login(){
-fetch("/api/login",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({
-user:document.getElementById("user").value,
-password:document.getElementById("pass").value
-})
-})
+fetch("/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({user:"admin",password:"1234"})})
 .then(r=>r.json())
-.then(d=>{
-if(d.token){
-token=d.token;
-document.getElementById("login").style.display="none";
-document.getElementById("app").style.display="block";
-listar();
-stats();
-}else{
-document.getElementById("msg").innerText="Error login";
-}
-});
+.then(d=>{token=d.token;listar();stats();grafica();});
 }
 
 function stats(){
 fetch("/api/stats",{headers:{"token":token}})
 .then(r=>r.json())
 .then(d=>{
-document.getElementById("ingresos").innerText="$"+d.ingresos;
-document.getElementById("ingresos_hoy").innerText="$"+d.ingresos_hoy;
-document.getElementById("total").innerText=d.total_boletos;
-document.getElementById("pagados").innerText=d.pagados;
-document.getElementById("pendientes").innerText=d.pendientes;
-document.getElementById("promedio").innerText="$"+d.ticket_promedio;
+ingresos.innerText="$"+d.ingresos;
+ingresos_hoy.innerText="$"+d.ingresos_hoy;
+total.innerText=d.total_boletos;
+pagados.innerText=d.pagados;
+pendientes.innerText=d.pendientes;
+promedio.innerText="$"+d.ticket_promedio;
+});
+}
+
+function grafica(){
+fetch("/api/grafica",{headers:{"token":token}})
+.then(r=>r.json())
+.then(d=>{
+if(chart)chart.destroy();
+
+chart=new Chart(document.getElementById("chart"),{
+type:"line",
+data:{
+labels:d.labels,
+datasets:[{
+data:d.data,
+borderColor:"#3b82f6"
+}]
+}
+});
 });
 }
 
 function crear(){
-fetch("/api/crear",{
-method:"POST",
-headers:{
-"Content-Type":"application/json",
-"token":token
-},
-body:JSON.stringify({
-nombre:document.getElementById("nombre").value,
-asiento:parseInt(document.getElementById("asiento").value),
-precio:parseFloat(document.getElementById("precio").value)
-})
-}).then(()=>{listar();stats();});
-}
-
-function eliminar(id){
-fetch("/api/eliminar/"+id,{method:"DELETE",headers:{"token":token}})
-.then(()=>{listar();stats();});
-}
-
-function pagar(id){
-fetch("/api/pagar/"+id,{method:"POST",headers:{"token":token}})
-.then(()=>{listar();stats();});
+fetch("/api/crear",{method:"POST",headers:{"Content-Type":"application/json","token":token},
+body:JSON.stringify({nombre,asiento:parseInt(asiento.value),precio:parseFloat(precio.value)})})
+.then(()=>{stats();listar();grafica();});
 }
 
 function listar(){
 fetch("/api/boletos",{headers:{"token":token}})
 .then(r=>r.json())
-.then(data=>{
-let html="";
-data.forEach(b=>{
-html+=`
+.then(d=>{
+lista.innerHTML=d.map(b=>`
 <div class="ticket">
-<b>${b.nombre}</b><br>
-Asiento: ${b.asiento}<br>
-Precio: $${b.precio}<br>
-Fecha: ${b.fecha}<br>
-Estado: ${b.pagado?"✔ Pagado":"⏳ Pendiente"}<br>
-
-<div class="actions">
-<button onclick="pagar('${b.id}')">Pagar</button>
-<button onclick="eliminar('${b.id}')">Eliminar</button>
-<a href="/api/qr/${b.id}" target="_blank"><button>QR</button></a>
-<a href="/api/pdf/${b.id}" target="_blank"><button>PDF</button></a>
-</div>
-</div>
-`;
-});
-document.getElementById("lista").innerHTML=html;
+${b.nombre} - $${b.precio}
+</div>`).join("");
 });
 }
+
+login();
 </script>
 
 </body>

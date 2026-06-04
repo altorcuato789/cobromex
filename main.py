@@ -26,10 +26,10 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 
 def get_conn():
     if not DATABASE_URL:
-        raise Exception("DATABASE_URL no configurada en Render")
+        raise Exception("DATABASE_URL no configurada")
     return psycopg2.connect(DATABASE_URL)
 
-# ---------------- AUTH SIMPLE ----------------
+# ---------------- AUTH ----------------
 ADMIN_USER = "admin"
 ADMIN_PASS = "1234"
 TOKENS = set()
@@ -38,7 +38,7 @@ def verify_token(token: str = Header(None)):
     if token not in TOKENS:
         raise HTTPException(status_code=401, detail="No autorizado")
 
-# ---------------- INIT DB (SAFE) ----------------
+# ---------------- INIT DB ----------------
 def init_db():
     try:
         conn = get_conn()
@@ -57,9 +57,8 @@ def init_db():
 
         conn.commit()
         conn.close()
-
     except Exception as e:
-        print("DB init pendiente:", e)
+        print("DB init error:", e)
 
 init_db()
 
@@ -160,7 +159,7 @@ def eliminar(id: str, token: str = Depends(verify_token)):
 
     return {"ok": True}
 
-# ---------------- STRIPE STATS ----------------
+# ---------------- STATS ----------------
 @app.get("/api/stats")
 def stats(token: str = Depends(verify_token)):
     conn = get_conn()
@@ -193,6 +192,28 @@ def stats(token: str = Depends(verify_token)):
         "ingresos": ingresos,
         "ingresos_hoy": ingresos_hoy,
         "ticket_promedio": round(ticket_promedio, 2)
+    }
+
+# ---------------- GRAFICA STRIPE ----------------
+@app.get("/api/grafica")
+def grafica(token: str = Depends(verify_token)):
+    conn = get_conn()
+    c = conn.cursor()
+
+    c.execute("""
+        SELECT DATE(fecha), COALESCE(SUM(precio),0)
+        FROM boletos
+        WHERE pagado=1
+        GROUP BY DATE(fecha)
+        ORDER BY DATE(fecha)
+    """)
+
+    rows = c.fetchall()
+    conn.close()
+
+    return {
+        "labels": [r[0] for r in rows],
+        "data": [float(r[1]) for r in rows]
     }
 
 # ---------------- QR ----------------
