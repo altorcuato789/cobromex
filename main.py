@@ -20,7 +20,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ---------------- LOGIN SIMPLE ----------------
+# ---------------- AUTH ----------------
 ADMIN_USER = "admin"
 ADMIN_PASS = "1234"
 TOKENS = set()
@@ -29,7 +29,7 @@ def verify_token(token: str = Header(None)):
     if token not in TOKENS:
         raise HTTPException(status_code=401, detail="No autorizado")
 
-# ---------------- DATABASE ----------------
+# ---------------- DB ----------------
 def init_db():
     conn = sqlite3.connect("boletos.db")
     c = conn.cursor()
@@ -72,42 +72,29 @@ def login(data: Login):
         return {"token": token}
     raise HTTPException(status_code=401, detail="Credenciales incorrectas")
 
-# ---------------- CREAR BOLETO ----------------
+# ---------------- CREAR ----------------
 @app.post("/api/crear")
 def crear(data: Boleto, token: str = Depends(verify_token)):
-    try:
-        if not data.nombre or len(data.nombre.strip()) < 2:
-            return {"error": "Nombre inválido"}
+    conn = sqlite3.connect("boletos.db")
+    c = conn.cursor()
 
-        if data.asiento <= 0:
-            return {"error": "Asiento inválido"}
-
-        if data.precio <= 0:
-            return {"error": "Precio inválido"}
-
-        conn = sqlite3.connect("boletos.db")
-        c = conn.cursor()
-
-        c.execute("SELECT id FROM boletos WHERE asiento=?", (data.asiento,))
-        if c.fetchone():
-            conn.close()
-            return {"error": "Asiento ocupado"}
-
-        boleto_id = str(uuid.uuid4())
-        fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        c.execute("""
-            INSERT INTO boletos (id, nombre, asiento, precio, fecha, pagado)
-            VALUES (?, ?, ?, ?, ?, 0)
-        """, (boleto_id, data.nombre.strip(), data.asiento, data.precio, fecha))
-
-        conn.commit()
+    c.execute("SELECT id FROM boletos WHERE asiento=?", (data.asiento,))
+    if c.fetchone():
         conn.close()
+        return {"error": "Asiento ocupado"}
 
-        return {"ok": True}
+    boleto_id = str(uuid.uuid4())
+    fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    except Exception as e:
-        return {"error": str(e)}
+    c.execute("""
+        INSERT INTO boletos (id, nombre, asiento, precio, fecha, pagado)
+        VALUES (?, ?, ?, ?, ?, 0)
+    """, (boleto_id, data.nombre, data.asiento, data.precio, fecha))
+
+    conn.commit()
+    conn.close()
+
+    return {"ok": True}
 
 # ---------------- LISTAR ----------------
 @app.get("/api/boletos")
